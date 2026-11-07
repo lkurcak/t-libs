@@ -1,6 +1,8 @@
-# t-hashmap
+# t-libs
 
-A hash map library written in T, the language at `~/repos/tooling/t-lang`
+Libraries written in T (the repo was t-hashmap until 2026-11-07; the hash
+map is its first package, at the root until git dependencies can name a
+subdirectory, then in `hashmap/`, with `grid/` and `graph/` beside it). The hash map is a library written in T, the language at `~/repos/tooling/t-lang`
 (GitHub: lkurcak/t-lang). Like tcalc (`~/repos/tooling/tcalc`), its real
 purpose is to find out what using T is like, here for a library: writing
 an interface, separate checking, a user-implemented `Hash` trait, the
