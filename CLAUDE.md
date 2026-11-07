@@ -1,18 +1,21 @@
 # t-libs
 
-Libraries written in T (the repo was t-hashmap until 2026-11-07; the hash
-map is its first package, at the root until git dependencies can name a
-subdirectory, then in `hashmap/`, with `grid/` and `graph/` beside it). The hash map is a library written in T, the language at `~/repos/tooling/t-lang`
+Libraries written in T (the repo was t-hashmap until 2026-11-07). Each package is
+a directory with a `lib.t` (dependents name it by `subdirectory`, t
+0.66.0+): the hash map in `hashmap/`, with `grid/` and `graph/` to come
+beside it. There's no workspace concept yet: `tests/run.sh` loops over
+`*/lib.t`. The hash map is a library written in T, the language at `~/repos/tooling/t-lang`
 (GitHub: lkurcak/t-lang). Like tcalc (`~/repos/tooling/tcalc`), its real
 purpose is to find out what using T is like, here for a library: writing
 an interface, separate checking, a user-implemented `Hash` trait, the
 orphan rule, API evolution. tcalc depends on it, by git rev, for its
 variables.
 
-- `lib.t` is the package's root (`Map`), `hash.t` the `hash` module
-  (`Hash`, `Hasher`, `Probe`).
-- `tests/run.sh` runs what CI runs; `tests/lib.t` is a dependent package
-  of `#[test]`s (`t test tests/lib.t`).
+- `hashmap/lib.t` is the package's root (`Map`), `hashmap/hash.t` the
+  `hash` module (`Hash`, `Hasher`, `Probe`).
+- `tests/run.sh` runs what CI runs, for every package; each package's
+  `tests/lib.t` is a dependent package of `#[test]`s (`t test
+  hashmap/tests/lib.t`).
 - CI pins a `t` release (`t-version` + `t-sha256` in .github/workflows/t.yml, which calls forge's shared t-ci.yml); bump both
   after a t-lang release, from `gh release view vX.Y.Z -R lkurcak/t-lang
   --json assets`.
