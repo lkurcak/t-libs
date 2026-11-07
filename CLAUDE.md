@@ -13,7 +13,7 @@ variables.
   (`Hash`, `Hasher`, `Probe`).
 - `tests/run.sh` runs what CI runs; `tests/lib.t` is a dependent package
   of `#[test]`s (`t test tests/lib.t`).
-- CI pins a `t` release (`T_VERSION` + `T_SHA256` in ci.yml); bump both
+- CI pins a `t` release (`t-version` + `t-sha256` in .github/workflows/t.yml, which calls forge's shared t-ci.yml); bump both
   after a t-lang release, from `gh release view vX.Y.Z -R lkurcak/t-lang
   --json assets`.
 - `FRICTION.md` is the friction log: label entries gap / by design /
