@@ -2,7 +2,7 @@
 
 Libraries for [T](https://github.com/lkurcak/t-lang). Each is a package in
 a directory of its own, which a dependent names as its `subdirectory`.
-For now there's one, a hash map, in `hashmap/`; a grid and a graph are to
+There's a hash map in `hashmap/` and a grid in `grid/`; a graph is to
 come. It's also an experiment: what writing a library's
 interface in T is like. What got in the way is in
 [FRICTION.md](FRICTION.md).
@@ -42,6 +42,34 @@ by an adversary can share a bucket and make lookups slow.
 
 Nothing in it is `unsafe`, and nothing panics: running out of memory is
 `alloc`'s, as for any allocation.
+
+## The grid
+
+```toml
+grid = { git = "https://github.com/lkurcak/t-libs", rev = "<full commit hash>", subdirectory = "grid" }
+```
+
+```text
+use grid::Grid;
+
+let mut g = Grid::new(3, 2, 0u8).unwrap();   // 3 wide, 2 high; None if too big
+if g.width() == 3 && g.height() == 2 {
+    g.set(2, 1, 7);                          // column 2 of row 1
+    g.get(2, 1)                              // &7
+}
+g.at(5, 5)                                   // None: outside
+```
+
+- `Grid<T>`: `new` (for `T: Copy`), `width`, `height`, `get`, `at`,
+  `replace`, `set`, `cells` (row by row), `iter`, `x_of`, `y_of`, `copy`.
+  It's `Discard`, `Send` and `Sync` when `T` is.
+
+The cells are one list, row by row, and its invariant, `cells.len() ==
+width * height`, is a refinement the checker proves every method keeps
+(t 0.67.0+: products of two unknowns). So `get` and `set` take
+coordinates the caller has proved inside the grid, `x < g.width()` and
+`y < g.height()`, and never panic; `at` is the one that checks. Nothing in
+it is `unsafe`, and nothing panics.
 
 ## Developing
 

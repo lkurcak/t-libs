@@ -12,7 +12,8 @@ Positive findings, where something worked better than expected, are
 labelled **works**. The log is evidence for t-lang's plans, not a design
 for them.
 
-Written against `t` 0.40.0; updated for 0.41.0, 0.42.0 and 0.43.0.
+Written against `t` 0.40.0; updated for 0.41.0, 0.42.0 and 0.43.0; the
+grid's entries against 0.67.0.
 
 ## Looking up `String` keys by `&str` — unsure
 
@@ -200,6 +201,87 @@ FNV-1a's offset basis and prime, and the first bucket count, were
 literals in the code, with comments saying what they were. Since t 0.50.0
 they're `const` items (`OFFSET`, `PRIME`, `FIRST`), worked out while
 compiling.
+
+## The grid: products of unknowns — fixed in 0.67.0
+
+A grid stored row by row has the cell in column `x` of row `y` at `y *
+width + x`, and its invariant is `cells.len() == width * height`: before
+t 0.67.0 neither could be proved or even stated (t-nonograms' FRICTION.md,
+"Two-dimensional indexing"). t-lang step 51 made products of two unknowns
+part of the logic, and the grid is written the obvious way:
+
+```rust,ignore
+export struct Grid<T> {
+    width: usize,
+    height: usize,
+    cells: { c: List<T> | c.len() == width * height },
+}
+
+export fn get(&self, x: { x: usize | x < self.width() }, y: { y: usize | y < self.height() }) -> &T {
+    &self.cells[y * self.width + x]
+}
+```
+
+`x_of(i)` and `y_of(i)`, `i % width` and `i / width`, are proved inside
+the grid from `i < width * height` too, from what division now says.
+
+## Writing a list that's a refined field — fixed in 0.67.0
+
+`self.cells[i] = v` lends the list for as long as the `&mut T` lives,
+which a refined field can't be. t 0.67.0 added `List::replace` and
+`List::set`, which lend it for the call and say its length stays.
+
+## A sub-slice can't be proved — gap
+
+`row(y)` would be `&cells[y * width .. y * width + width]`, as a slice.
+T has no range indexing, and `split_at` gives an `Option`, which says
+nothing of how long the halves are. So the grid has no `row`; a
+dependent copies a row out cell by cell.
+
+## Nested loops that write forget the size — gap
+
+```rust,ignore
+while y < g.height() {
+    let mut x: usize = 0;
+    while x < g.width() && y < g.height() {   // `&& y < g.height()`: see below
+        g.set(x, y, v);
+        x = x + 1;
+    }
+    y = y + 1;
+}
+```
+
+The inner loop lends `g` to `set`, so at its head the checker forgets
+what it knew of `g`, the outer `y < g.height()` included, though `set`
+ensures the width and height stay. Writing the check again is cheap, but
+it's a run-time test of something that can't fail. What would fix it: a
+measure every lend in a loop's body ensures unchanged stays known across
+the loop's head.
+
+## `for x in 0..n` says nothing of `x` — gap
+
+`Range`'s `next` gives an `Option<T>`, which can't say `x < n`, so in
+`for x in 0..g.width()` the checker doesn't know `x < g.width()` and
+`g.get(x, y)` isn't proved. Every proved loop over a grid is a `while`.
+
+## A grid of values that aren't `Copy` — gap
+
+`Grid::new(width, height, fill)` copies `fill` into each cell, so `T:
+Copy`. A `from_fn(width, height, |x, y| ..)` would make the rest, but
+filling a list in a loop can't prove its length either (the loop
+forgets), so it'd need the trick `List::filled` uses: the list in a
+struct whose refinement says how long it may grow.
+
+## `new` gives an `Option` that can't say how big — unsure
+
+```rust,ignore
+let Some(mut g) = Grid::new(3, 2, 0u8) else { .. };
+if g.width() == 3 && g.height() == 2 {   // to call get/set with literals
+```
+
+A refinement can't be inside an `Option`, so what `new` made has no
+known size and the caller asks again. A `with_size` that panics, or
+refinements on type arguments, would avoid it.
 
 ## What worked — works
 
