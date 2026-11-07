@@ -1,15 +1,16 @@
 # t-libs
 
-Libraries for [T](https://github.com/lkurcak/t-lang). For now there's one,
-a hash map, as a package other T programs depend on; a grid and a graph
-library are to come, each a package of its own here. It's also an experiment: what writing a library's
+Libraries for [T](https://github.com/lkurcak/t-lang). Each is a package in
+a directory of its own, which a dependent names as its `subdirectory`.
+For now there's one, a hash map, in `hashmap/`; a grid and a graph are to
+come. It's also an experiment: what writing a library's
 interface in T is like. What got in the way is in
 [FRICTION.md](FRICTION.md).
 
 ```toml
 # t.toml
 [dependencies]
-hashmap = { git = "https://github.com/lkurcak/t-libs", rev = "<full commit hash>" }
+hashmap = { git = "https://github.com/lkurcak/t-libs", rev = "<full commit hash>", subdirectory = "hashmap" }
 ```
 
 ```text
@@ -44,7 +45,8 @@ Nothing in it is `unsafe`, and nothing panics: running out of memory is
 
 ## Developing
 
-`tests/run.sh` checks it as CI does: `t check --deny-warnings`, `t fmt
---check`, and `t test` of `tests/lib.t`, a dependent by path whose
-`#[test]`s use the map as any dependent would. CI installs a pinned `t`
+`tests/run.sh` checks every package as CI does: `t check
+--deny-warnings`, `t fmt --check`, and `t test` of its `tests/lib.t`, a
+dependent by path whose `#[test]`s use the package as any dependent
+would. CI installs a pinned `t`
 release.
