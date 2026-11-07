@@ -1,14 +1,15 @@
-# t-hashmap
+# t-libs
 
-A hash map for [T](https://github.com/lkurcak/t-lang), as a package other
-T programs depend on. It's also an experiment: what writing a library's
+Libraries for [T](https://github.com/lkurcak/t-lang). For now there's one,
+a hash map, as a package other T programs depend on; a grid and a graph
+library are to come, each a package of its own here. It's also an experiment: what writing a library's
 interface in T is like. What got in the way is in
 [FRICTION.md](FRICTION.md).
 
 ```toml
 # t.toml
 [dependencies]
-hashmap = { git = "https://github.com/lkurcak/t-hashmap", rev = "<full commit hash>" }
+hashmap = { git = "https://github.com/lkurcak/t-libs", rev = "<full commit hash>" }
 ```
 
 ```text
