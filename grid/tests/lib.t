@@ -4,22 +4,20 @@
 use core::num::greatest;
 use grid::Grid;
 
-/// What `new` makes is an `Option`, which can't say how big the grid is,
-/// so a test asks before it uses coordinates.
+/// What `new` makes is as big as it was asked for, so coordinates inside
+/// that are proved (t 0.69.0's refinements of `Option`'s type argument).
 #[test]
 fn get_and_set() {
     let Some(mut g) = Grid::new(3, 2, 0u8) else { panic("3 by 2 fits") };
     assert_eq(&g.width(), &3);
     assert_eq(&g.height(), &2);
-    if g.width() == 3 && g.height() == 2 {
-        g.set(2, 1, 7);
-        g.set(0, 0, 1);
-        assert_eq(g.get(2, 1), &7);
-        assert_eq(g.get(0, 0), &1);
-        assert_eq(g.get(1, 0), &0);
-        assert_eq(&g.replace(2, 1, 8), &7);
-        assert_eq(g.get(2, 1), &8);
-    }
+    g.set(2, 1, 7);
+    g.set(0, 0, 1);
+    assert_eq(g.get(2, 1), &7);
+    assert_eq(g.get(0, 0), &1);
+    assert_eq(g.get(1, 0), &0);
+    assert_eq(&g.replace(2, 1, 8), &7);
+    assert_eq(g.get(2, 1), &8);
 }
 
 #[test]
@@ -43,38 +41,31 @@ fn too_big() {
 #[test]
 fn row_by_row() {
     let Some(mut g) = Grid::new(3, 2, 0u32) else { panic("3 by 2 fits") };
-    let mut y: usize = 0;
-    while y < g.height() {
-        let mut x: usize = 0;
-        // `set` ensures the height stays, so the outer condition is still
-        // known at this loop's head (t 0.68.0's loop frames).
-        while x < g.width() {
+    // `x < g.width()` in each `for`, as a range's `next` says what it gives
+    // is less than its end; and `set` keeps the width and height, so the
+    // ranges' ends stay them (t 0.69.0).
+    for y in 0..g.height() {
+        for x in 0..g.width() {
             g.set(x, y, (y * 10 + x) as u32);
-            x = x + 1;
         }
-        y = y + 1;
     }
     let cells = g.cells();
     assert_eq(&cells.len(), &6);
-    let mut i: usize = 0;
-    while i < cells.len() {
+    for i in 0..cells.len() {
         let x = g.x_of(i);
         let y = g.y_of(i);
         assert_eq(&cells[i], g.get(x, y));
         assert_eq(&cells[i], &((y * 10 + x) as u32));
-        i = i + 1;
     }
 }
 
 #[test]
 fn copies() {
     let Some(mut g) = Grid::new(2, 1, 1u8) else { panic("2 by 1 fits") };
-    if g.width() == 2 && g.height() == 1 {
-        let h = g.copy();
-        g.set(1, 0, 9);
-        assert_eq(&h.cells()[1], &1);
-        assert_eq(&g.cells()[1], &9);
-    }
+    let h = g.copy();
+    g.set(1, 0, 9);
+    assert_eq(&h.cells()[1], &1);
+    assert_eq(&g.cells()[1], &9);
 }
 
 #[test]

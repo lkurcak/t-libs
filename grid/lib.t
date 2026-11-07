@@ -2,9 +2,9 @@
 //! `height` high, stored row by row.
 //!
 //! ```text
-//! let mut g = Grid::new(3, 2, 0).unwrap();   // 3 wide, 2 high, all 0
-//! g.set(2, 1, 7);                            // column 2 of row 1
-//! g.get(2, 1)                                // &7
+//! let Some(mut g) = Grid::new(3, 2, 0) else { .. };   // 3 wide, 2 high
+//! g.set(2, 1, 7);                                   // column 2 of row 1
+//! g.get(2, 1)                                       // &7
 //! ```
 //!
 //! The cell in column `x` of row `y` is at `y * width + x`. The checker
@@ -95,7 +95,11 @@ impl<T: Discard> Grid<T> {
 impl<T: Copy> Grid<T> {
     /// A grid `width` wide and `height` high with `fill` in every cell, or
     /// `None` if it would have more cells than a `usize` can count.
-    export fn new(width: usize, height: usize, fill: T) -> Option<Grid<T>> with alloc {
+    export fn new(
+        width: usize,
+        height: usize,
+        fill: T,
+    ) -> Option<{ g: Grid<T> | g.width() == width && g.height() == height }> with alloc {
         if height == 0 {
             return Some(Grid { width, height, cells: List::new() });
         }
