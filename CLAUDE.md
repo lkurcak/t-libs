@@ -2,7 +2,7 @@
 
 Libraries written in T (the repo was t-hashmap until 2026-11-07). Each package is
 a directory with a `lib.t` (dependents name it by `subdirectory`, t
-0.66.0+): the hash map in `hashmap/`, with `grid/` and `graph/` to come
+0.66.0+): the hash map in `hashmap/`, the grid in `grid/`, with `graph/` to come
 beside it. There's no workspace concept yet: `tests/run.sh` loops over
 `*/lib.t`. The hash map is a library written in T, the language at `~/repos/tooling/t-lang`
 (GitHub: lkurcak/t-lang). Like tcalc (`~/repos/tooling/tcalc`), its real
