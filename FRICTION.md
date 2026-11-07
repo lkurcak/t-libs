@@ -238,12 +238,12 @@ T has no range indexing, and `split_at` gives an `Option`, which says
 nothing of how long the halves are. So the grid has no `row`; a
 dependent copies a row out cell by cell.
 
-## Nested loops that write forget the size — gap
+## Nested loops that write forget the size — fixed in 0.68.0
 
 ```rust,ignore
 while y < g.height() {
     let mut x: usize = 0;
-    while x < g.width() && y < g.height() {   // `&& y < g.height()`: see below
+    while x < g.width() {
         g.set(x, y, v);
         x = x + 1;
     }
@@ -251,12 +251,11 @@ while y < g.height() {
 }
 ```
 
-The inner loop lends `g` to `set`, so at its head the checker forgets
-what it knew of `g`, the outer `y < g.height()` included, though `set`
-ensures the width and height stay. Writing the check again is cheap, but
-it's a run-time test of something that can't fail. What would fix it: a
-measure every lend in a loop's body ensures unchanged stays known across
-the loop's head.
+The inner loop lends `g` to `set`, and up to 0.67.0 the checker forgot
+at its head what it knew of `g`, the outer `y < g.height()` included, so
+the inner condition had to say `&& y < g.height()` again. t 0.68.0's loop
+frames keep a measure that every lend in the loop ensures unchanged, and
+`set` ensures the width and height stay.
 
 ## `for x in 0..n` says nothing of `x` — gap
 

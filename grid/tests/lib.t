@@ -46,10 +46,9 @@ fn row_by_row() {
     let mut y: usize = 0;
     while y < g.height() {
         let mut x: usize = 0;
-        // `&& y < g.height()`: the loop lends `g`, so at its head the
-        // checker forgets what it knew of `g`, the outer condition too,
-        // though `set` ensures the height stays (FRICTION.md).
-        while x < g.width() && y < g.height() {
+        // `set` ensures the height stays, so the outer condition is still
+        // known at this loop's head (t 0.68.0's loop frames).
+        while x < g.width() {
             g.set(x, y, (y * 10 + x) as u32);
             x = x + 1;
         }
