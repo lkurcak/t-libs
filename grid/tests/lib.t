@@ -91,3 +91,15 @@ fn from_fn_fills_each_cell() {
     assert_eq(&g.get(1, 1).n, &4);
     assert(Grid::from_fn(greatest::<usize>(), 2, |_x, _y| 0u8).is_none());
 }
+
+/// A row is a slice as wide as the grid, proved in range (t 0.72.0's
+/// sub-slices), so its indexes below the width need no check.
+#[test]
+fn rows() {
+    let Some(g) = Grid::from_fn(3, 2, |x, y| x + 3 * y) else { panic("3 by 2 fits") };
+    let r = g.row(1);
+    assert_eq(&r.len(), &3);
+    assert_eq(&r[0], &3);
+    assert_eq(&r[2], &5);
+    assert_eq(&g.row(0)[1], &1);
+}

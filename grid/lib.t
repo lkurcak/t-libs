@@ -64,6 +64,16 @@ impl<T> Grid<T> {
         self.cells.as_slice()
     }
 
+    /// Row `y`'s values, from column 0 on: the value in column `x` of it
+    /// is `row(y)[x]`.
+    export fn row(
+        &self,
+        y: { y: usize | y < self.height() },
+    ) -> { r: &[T] | r.len() == self.width() } {
+        let start = y * self.width;
+        self.cells.slice(start..start + self.width)
+    }
+
     /// Each cell's value, row by row.
     export fn iter(&self) -> Iter<T> { self.cells.iter() }
 
