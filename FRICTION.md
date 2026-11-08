@@ -13,7 +13,7 @@ labelled **works**. The log is evidence for t-lang's plans, not a design
 for them.
 
 Written against `t` 0.40.0; updated for 0.41.0, 0.42.0 and 0.43.0; the
-grid's entries against 0.67.0.
+grid's entries against 0.67.0, updated to 0.70.0.
 
 ## Looking up `String` keys by `&str` — unsure
 
@@ -265,13 +265,29 @@ frames keep a measure that every lend in the loop ensures unchanged, and
 `while`. t 0.69.0's `next` gives an `Option<{ v: T | v < self.end() }>`
 and keeps the end, so the tests' loops over a grid are `for`s.
 
-## A grid of values that aren't `Copy` — gap
+## A grid of values that aren't `Copy` — fixed in 0.70.0
 
 `Grid::new(width, height, fill)` copies `fill` into each cell, so `T:
 Copy`. A `from_fn(width, height, |x, y| ..)` would make the rest, but
-filling a list in a loop can't prove its length either (the loop
-forgets), so it'd need the trick `List::filled` uses: the list in a
+filling a list in a loop couldn't prove its length either (the loop
+forgot), so it'd have needed the trick `List::filled` used: the list in a
 struct whose refinement says how long it may grow.
+
+t 0.70.0's loop invariants (t-lang step 54) say it, one loop per row:
+
+```rust,ignore
+while y < height invariant cells.len() == y * width && y <= height {
+    let mut x: usize = 0;
+    while x < width invariant cells.len() == y * width + x && x <= width {
+        cells.push(f(x, y));
+        x = x + 1;
+    }
+    y = y + 1;
+}
+```
+
+and `from_fn` makes a grid of anything. (`List::filled` lost its trick
+too.)
 
 ## `new` gives an `Option` that can't say how big — fixed in 0.69.0
 

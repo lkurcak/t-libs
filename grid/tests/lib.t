@@ -74,3 +74,20 @@ fn iterates() {
     assert_eq(&g.iter().count(), &6);
     assert_eq(&g.iter().filter(|v| **v == 4).count(), &6);
 }
+
+/// A value that isn't `Copy`.
+#[derive(Discard)]
+struct Tile { n: usize }
+
+/// Cells that aren't `Copy`, which `new` can't fill: each made by `from_fn`
+/// (t 0.70.0's loop invariants say how many it made).
+#[test]
+fn from_fn_fills_each_cell() {
+    let Some(g) = Grid::from_fn(3, 2, |x, y| Tile { n: x + 3 * y }) else { panic("3 by 2 fits") };
+    assert_eq(&g.width(), &3);
+    assert_eq(&g.height(), &2);
+    assert_eq(&g.get(0, 0).n, &0);
+    assert_eq(&g.get(2, 0).n, &2);
+    assert_eq(&g.get(1, 1).n, &4);
+    assert(Grid::from_fn(greatest::<usize>(), 2, |_x, _y| 0u8).is_none());
+}
