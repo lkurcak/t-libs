@@ -60,8 +60,9 @@ if g.width() == 3 && g.height() == 2 {
 g.at(5, 5)                                   // None: outside
 ```
 
-- `Grid<T>`: `new` (for `T: Copy`), `width`, `height`, `get`, `at`,
-  `replace`, `set`, `cells` (row by row), `iter`, `x_of`, `y_of`, `copy`.
+- `Grid<T>`: `new` (for `T: Copy`), `from_fn` (any `T`, from `|x, y|
+  ..`), `width`, `height`, `get`, `at`, `replace`, `set`, `cells` (row by
+  row), `iter`, `x_of`, `y_of`, `copy`.
   It's `Discard`, `Send` and `Sync` when `T` is.
 
 The cells are one list, row by row, and its invariant, `cells.len() ==

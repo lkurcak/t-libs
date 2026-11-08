@@ -92,6 +92,36 @@ impl<T: Discard> Grid<T> {
     }
 }
 
+impl<T> Grid<T> {
+    /// A grid `width` wide and `height` high with `f(x, y)` in column `x`
+    /// of row `y`, made row by row, or `None` if it would have more cells
+    /// than a `usize` can count. For values that aren't `Copy`, which
+    /// `new` can't copy into each cell.
+    export fn from_fn<effect e, F: FnMut(usize, usize) -> T with e + Discard>(
+        width: usize,
+        height: usize,
+        mut f: F,
+    ) -> Option<{ g: Grid<T> | g.width() == width && g.height() == height }> with {alloc, e} {
+        if height == 0 {
+            return Some(Grid { width, height, cells: List::new() });
+        }
+        if width > greatest::<usize>() / height {
+            return None;
+        }
+        let mut cells: List<T> = List::new();
+        let mut y: usize = 0;
+        while y < height invariant cells.len() == y * width && y <= height {
+            let mut x: usize = 0;
+            while x < width invariant cells.len() == y * width + x && x <= width {
+                cells.push(f(x, y));
+                x = x + 1;
+            }
+            y = y + 1;
+        }
+        Some(Grid { width, height, cells })
+    }
+}
+
 impl<T: Copy> Grid<T> {
     /// A grid `width` wide and `height` high with `fill` in every cell, or
     /// `None` if it would have more cells than a `usize` can count.
