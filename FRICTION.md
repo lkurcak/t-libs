@@ -231,12 +231,18 @@ the grid from `i < width * height` too, from what division now says.
 which a refined field can't be. t 0.67.0 added `List::replace` and
 `List::set`, which lend it for the call and say its length stays.
 
-## A sub-slice can't be proved — gap
+## A sub-slice can't be proved — fixed in 0.72.0
 
 `row(y)` would be `&cells[y * width .. y * width + width]`, as a slice.
-T has no range indexing, and `split_at` gives an `Option`, which says
-nothing of how long the halves are. So the grid has no `row`; a
-dependent copies a row out cell by cell.
+T had no range indexing, and `split_at` gave an `Option`, which said
+nothing of how long the halves are. So the grid had no `row`; a
+dependent copied a row out cell by cell.
+
+t 0.72.0 added `s.slice(a..b)`, for a range proved in the slice, which
+says how long what it gives is, and `split_at`'s halves say theirs. So
+`Grid::row(y)` is `self.cells.slice(start..start + self.width)`, proved
+from `y < height` and the grid's invariant, and `row(y)[x]` for `x <
+width()` needs no check.
 
 ## Nested loops that write forget the size — fixed in 0.68.0
 
