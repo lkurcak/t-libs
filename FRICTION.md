@@ -257,11 +257,13 @@ the inner condition had to say `&& y < g.height()` again. t 0.68.0's loop
 frames keep a measure that every lend in the loop ensures unchanged, and
 `set` ensures the width and height stay.
 
-## `for x in 0..n` says nothing of `x` — gap
+## `for x in 0..n` says nothing of `x` — fixed in 0.69.0
 
-`Range`'s `next` gives an `Option<T>`, which can't say `x < n`, so in
-`for x in 0..g.width()` the checker doesn't know `x < g.width()` and
-`g.get(x, y)` isn't proved. Every proved loop over a grid is a `while`.
+`Range`'s `next` gave an `Option<T>`, which couldn't say `x < n`, so in
+`for x in 0..g.width()` the checker didn't know `x < g.width()` and
+`g.get(x, y)` wasn't proved. Every proved loop over a grid was a
+`while`. t 0.69.0's `next` gives an `Option<{ v: T | v < self.end() }>`
+and keeps the end, so the tests' loops over a grid are `for`s.
 
 ## A grid of values that aren't `Copy` — gap
 
@@ -271,16 +273,18 @@ filling a list in a loop can't prove its length either (the loop
 forgets), so it'd need the trick `List::filled` uses: the list in a
 struct whose refinement says how long it may grow.
 
-## `new` gives an `Option` that can't say how big — unsure
+## `new` gives an `Option` that can't say how big — fixed in 0.69.0
 
 ```rust,ignore
 let Some(mut g) = Grid::new(3, 2, 0u8) else { .. };
 if g.width() == 3 && g.height() == 2 {   // to call get/set with literals
 ```
 
-A refinement can't be inside an `Option`, so what `new` made has no
-known size and the caller asks again. A `with_size` that panics, or
-refinements on type arguments, would avoid it.
+A refinement couldn't be inside an `Option`, so what `new` made had no
+known size and the caller asked again. t 0.69.0 lets an enum's type
+argument be a refinement: `new` gives an `Option<{ g: Grid<T> |
+g.width() == width && g.height() == height }>`, and the tests no longer
+ask.
 
 ## What worked — works
 
