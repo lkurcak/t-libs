@@ -43,6 +43,11 @@ checker accepts them: `str` can't be a `K`), `ages.get("ada")` and
 clearer than `Borrow` (one trait, says what it's for), but every library
 that wants this will invent its own `Probe`.
 
+**Half way in 0.73.0** (t-lang step 57, unsized parameters): a type
+parameter declared `unsized Q` may stand for `str`, so `get<unsized Q>(&self,
+k: &Q)` can be written. `K: Borrow<Q>` still can't: a trait can't have type
+parameters yet. `Probe` stays until it can.
+
 ## `x % n < n` isn't proved for a variable `n` — fixed in 0.41.0
 
 The bucket of a hash is `h % n`, and indexing needs `i < n`:
