@@ -1,7 +1,7 @@
 # Friction log
 
-What got in the way of writing a hash map library in T, with the code that
-hit it. Each entry is labelled:
+What got in the way of writing libraries in T, with the code that hit
+it. Each entry is labelled:
 
 - **gap**: T should have it;
 - **by design**: T leaves it out on purpose, and the entry says what that
@@ -13,7 +13,8 @@ labelled **works**. The log is evidence for t-lang's plans, not a design
 for them.
 
 Written against `t` 0.40.0; updated for 0.41.0, 0.42.0 and 0.43.0; the
-grid's entries against 0.67.0, updated to 0.70.0.
+grid's entries against 0.67.0, updated to 0.70.0; the heap's and the
+graph's against 0.74.0.
 
 ## Looking up `String` keys by `&str` — unsure
 
@@ -319,6 +320,123 @@ argument be a refinement: `new` gives an `Option<{ g: Grid<T> |
 g.width() == width && g.height() == height }>`, and the tests no longer
 ask.
 
+## What's in a list can't be refined — gap
+
+The graph's invariant is that every edge goes to a node: each edge's
+target is less than `node_count()`. `add_edge` asks for that, so it's
+proved when the edge goes in:
+
+```rust,ignore
+export fn add_edge(
+    &mut self,
+    from: { v: usize | v < self.node_count() },
+    to: { v: usize | v < self.node_count() },
+    value: E,
+)
+```
+
+But the edges are a `List<(usize, E)>`, and a refinement can't be a
+type argument of a `List` (t 0.69.0 allows one only in an enum's), so
+what comes out is a `usize` nothing's known of. Every search reads
+targets, and the BFS queue and Dijkstra's heap hold nodes, so each is
+checked again where it's used, by a check that never fails:
+
+```rust,ignore
+fn node_id(&self, i: usize) -> Option<{ v: usize | v < self.node_count() }> {
+    if i < self.nodes.len() { Some(i) } else { None }
+}
+
+for (to, _) in self.nodes[v].out.iter() {
+    let Some(t) = self.node_id(*to) else { continue };   // never `continue`s
+    if !seen[t] { .. }
+}
+```
+
+Nine of those in `graph/lib.t`, and `walk_back` reads a parent with
+`get`, and `topo_order` checks a count it knows is positive. A dependent
+has it too: `for (t, _) in g.edges(v)` gives targets it can't pass to
+`g.node(*t)` without a check. What's wanted is `List<({ t: usize | t <
+n }, E)>`, a `Heap<(u64, { v: usize | v < n })>`, a queue of `List<{ v:
+usize | v < n }>`, where `n` is the node count; and for the graph's own
+field, a refinement that names the list it's in: every target in
+`nodes` is less than `nodes.len()`.
+
+## Writing through `l[i]` forgets how long `l` is — gap
+
+```rust,ignore
+let mut l: List<u8> = List::filled(3, 0);
+l[0] = 3;
+l[1] = 4;
+// error: can't prove `i < self.len()` for argument `i` of `index_mut`
+// note: mutable lending invalidated facts about the previous value of `l`
+```
+
+`l[i] = v` is `*l.index_mut(i) = v`, and `index_mut`'s result borrows
+the list, so the checker forgets everything about it, its length
+included, though a `&mut u8` into the list can't change how long it is.
+Arrays and slices don't have it: their lengths aren't behind the
+borrow. `List::set` lends the list only for the call and says the
+length stays, so the graph's searches use it, `dist.set(t, ..)` for
+`dist[t] = ..`.
+
+It's worse for a list of structs. `self.nodes[from].out.push(e)` has
+the same problem (and the checker picks `index`, not `index_mut`, for a
+method call's receiver: "cannot borrow `*a temporary` as mutable"), so
+`add_edge` couldn't say the node count stays, which a dependent adding
+two edges needs. It takes the node out instead and puts it back, each
+step lending the list only for a call:
+
+```rust,ignore
+let last = self.nodes.len() - 1;
+let _ = self.nodes.swap(from, last);
+let Some(mut node) = self.nodes.pop() else { loop {} };   // never happens
+node.out.push((to, value));
+self.nodes.push(node);
+let _ = self.nodes.swap(from, last);
+```
+
+The `else` can't return: the edge's value may be linear, and must be
+used up. A dependent's `*g.node_mut(a) = x` forgets `node_count()` in
+the same way, so the next `add_edge(a, b, ..)` needs a check
+(`graph/tests/lib.t`, `node_values_change`).
+
+## A postcondition can't say which variant — gap
+
+`pop` gives `Some` exactly when there was something to pop, but neither
+`List::pop` nor `Heap::pop` can say so: a refinement can call only
+measures, and `is_some` isn't one. So `while let Some(v) = h.pop()`
+doesn't know `h` got shorter, `into_sorted` can't say how long its list
+is, and the heap it emptied, whose values may be linear, must still be
+used up:
+
+```rust,ignore
+while let Some(v) = h.pop() {
+    sorted.push(v);
+}
+// `h` is empty now, but the checker can't know.
+h.free_with(|v| sorted.push(v));
+```
+
+The `loop {}` in `add_edge` above is the same: the list it pops isn't
+empty.
+
+## `swap` takes indices it checks — unsure
+
+`List::swap(i, j)` and `<[T]>::swap` give a `bool`, whether both were in
+range, for any indices. The heap's are always proved, so it's `let _ =
+self.items.swap(i, parent)`, three times in the heap and three in the
+graph. A `swap` that asks for proved indices and gives nothing would read
+better, beside the one that checks.
+
+## The heap — works
+
+The heap is proved through and through: moving a value up the tree
+(`(i - 1) / 2 < i`) and down it (`i < n / 2`, so the children `2 * i +
+1` and `2 * i + 2` don't pass `n`), with loop invariants that the length
+stays, and step 51's division facts. Tuples' derived `Ord` (t 0.74.0)
+makes Dijkstra's `(cost, node)` entries one line, and a heap of linear
+values works, as `free_with` uses them up.
+
 ## What worked — works
 
 - Nested closures capturing `&mut self`, through effect-polymorphic
@@ -329,4 +447,8 @@ ask.
 - Separate checking: `t check lib.t` checks the library alone, with no
   `main`, and what it exports is what's live.
 - The library needed no `unsafe` and no `with panic`: overflow of `len` is
-  `out_of_memory()`, as in `List::push`.
+  `out_of_memory()`, as in `List::push`. The graph's in-degree count in
+  `topo_order` is the same: there can't be more edges than memory holds.
+- `add_node`'s result says it's a node, and its `ensures` that there's
+  one more: a dependent builds a graph with no checks, and `add_edge`
+  takes the numbers `add_node` gave.
