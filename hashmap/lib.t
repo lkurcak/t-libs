@@ -19,14 +19,9 @@ use alloc::raw::out_of_memory;
 use core::mem::replace;
 use core::num::greatest;
 
-/// A key and its value.
+/// A key and its value, as a bucket holds them.
 #[derive(Discard, Send, Sync)]
-export struct Entry<K, V> { export key: K, export value: V }
-
-/// A key and its value, as iterating with `iter_mut` gives them: the value
-/// can be changed, the key can't.
-#[derive(Discard, Send, Sync)]
-export struct EntryMut<'a, K, V> { export key: &'a K, export value: &'a mut V }
+struct Entry<K, V> { key: K, value: V }
 
 /// Keys of type `K`, each with a value of type `V`.
 #[derive(
@@ -51,21 +46,26 @@ impl<K, V> Map<K, V> {
     #[measure]
     export fn is_empty(&self) -> bool { self.len() == 0 }
 
-    /// Its keys and values, in no order that means anything.
+    /// Its keys and values, as `(&key, &value)`, in no order that means
+    /// anything.
     export fn iter(&self) -> Iter<K, V> {
         Iter { buckets: self.buckets.iter(), bucket: core::slice::empty().iter() }
     }
 
-    /// Its keys and values, with the values to change.
+    /// Its keys and values, as `(&key, &mut value)`: the values can be
+    /// changed, the keys can't.
     export fn iter_mut(&mut self) -> IterMut<K, V> {
         IterMut { buckets: self.buckets.iter_mut(), bucket: core::slice::empty_mut().iter_mut() }
     }
 
-    /// Gives each key and its value to `f`, and then the buckets back: how a
-    /// map of values that can't be thrown away is used up.
-    export fn free_with<effect e, F: FnMut(Entry<K, V>) with e + Discard>(self, mut f: F) with e {
+    /// Gives each key and its value to `f`, as `(key, value)`, and then the
+    /// buckets back: how a map of values that can't be thrown away is used
+    /// up.
+    export fn free_with<effect e, F: FnMut((K, V)) with e + Discard>(self, mut f: F) with e {
         let Map { buckets, len: _ } = self;
-        buckets.free_with(|bucket: List<Entry<K, V>>| bucket.free_with(|e: Entry<K, V>| f(e)));
+        buckets.free_with(|bucket: List<Entry<K, V>>| {
+            bucket.free_with(|Entry { key, value }| f((key, value)))
+        });
     }
 }
 
@@ -102,7 +102,7 @@ impl<K: Hash + Eq, V> Map<K, V> {
     export fn contains_key<P: Probe<Key = K>>(&self, p: P) -> bool { self.get(p).is_some() }
 
     /// Takes the key `p` is out, with its value, if it's there.
-    export fn remove_entry<P: Probe<Key = K>>(&mut self, p: P) -> Option<Entry<K, V>> {
+    export fn remove_entry<P: Probe<Key = K>>(&mut self, p: P) -> Option<(K, V)> {
         let n = self.buckets.len();
         if n == 0 {
             return None;
@@ -118,7 +118,10 @@ impl<K: Hash + Eq, V> Map<K, V> {
                 if self.len > 0 {
                     self.len = self.len - 1;
                 }
-                return bucket.pop();
+                return match bucket.pop() {
+                    Some(Entry { key, value }) => Some((key, value)),
+                    None => None,
+                };
             }
             i = i + 1;
         }
@@ -188,7 +191,7 @@ impl<K: Hash + Eq + Discard, V> Map<K, V> {
     /// Takes the key `p` is out, and returns its value, if it's there.
     export fn remove<P: Probe<Key = K>>(&mut self, p: P) -> Option<V> {
         match self.remove_entry(p) {
-            Some(Entry { key: _, value }) => Some(value),
+            Some((_, value)) => Some(value),
             None => None,
         }
     }
@@ -218,13 +221,13 @@ export struct Iter<'a, K, V> {
 }
 
 impl<'a, K, V> Iterator for Iter<'a, K, V> {
-    type Item = &'a Entry<K, V>;
+    type Item = (&'a K, &'a V);
     effect e = {};
 
-    fn next(&mut self) -> Option<&'a Entry<K, V>> {
+    fn next(&mut self) -> Option<(&'a K, &'a V)> {
         loop {
             if let Some(e) = self.bucket.next() {
-                return Some(e);
+                return Some((&e.key, &e.value));
             }
             let Some(b) = self.buckets.next() else { return None };
             self.bucket = b.iter();
@@ -240,13 +243,13 @@ export struct IterMut<'a, K, V> {
 }
 
 impl<'a, K, V> Iterator for IterMut<'a, K, V> {
-    type Item = EntryMut<'a, K, V>;
+    type Item = (&'a K, &'a mut V);
     effect e = {};
 
-    fn next(&mut self) -> Option<EntryMut<'a, K, V>> {
+    fn next(&mut self) -> Option<(&'a K, &'a mut V)> {
         loop {
             if let Some(e) = self.bucket.next() {
-                return Some(EntryMut { key: &e.key, value: &mut e.value });
+                return Some((&e.key, &mut e.value));
             }
             let Some(b) = self.buckets.next() else { return None };
             self.bucket = b.iter_mut();

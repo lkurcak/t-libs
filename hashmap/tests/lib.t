@@ -2,7 +2,7 @@
 //! tests/lib.t` runs each test.
 
 use alloc::string::String;
-use hashmap::{Entry, Map};
+use hashmap::Map;
 
 /// `String` keys, asked about by `&str` and by `&String`.
 #[test]
@@ -64,12 +64,12 @@ fn many() {
     }
     assert_eq(&m.len(), &1000);
     let mut sum: u64 = 0;
-    for e in m.iter() {
-        sum = sum + e.value as u64;
+    for (_, v) in m.iter() {
+        sum = sum + *v as u64;
     }
     assert_eq(&sum, &999000);
-    for e in m.iter_mut() {
-        *e.value = *e.key;
+    for (k, v) in m.iter_mut() {
+        *v = *k;
     }
     assert_eq(m.get(&777).unwrap(), &777);
     let mut j: u32 = 0;
@@ -95,8 +95,7 @@ fn linear() {
     total = total + put(&mut m, 1, 10);
     total = total + put(&mut m, 2, 20);
     total = total + put(&mut m, 1, 5);
-    m.free_with(|e: Entry<u32, Token>| {
-        let Token { n } = e.value;
+    m.free_with(|(_, Token { n }): (u32, Token)| {
         total = total + n;
     });
     assert_eq(&total, &35);
