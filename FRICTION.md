@@ -14,7 +14,7 @@ for them.
 
 Written against `t` 0.40.0; updated for 0.41.0, 0.42.0 and 0.43.0; the
 grid's entries against 0.67.0, updated to 0.70.0; the heap's and the
-graph's against 0.74.0.
+graph's against 0.74.0, updated to 0.75.0.
 
 ## Looking up `String` keys by `&str` — unsure
 
@@ -361,7 +361,7 @@ usize | v < n }>`, where `n` is the node count; and for the graph's own
 field, a refinement that names the list it's in: every target in
 `nodes` is less than `nodes.len()`.
 
-## Writing through `l[i]` forgets how long `l` is — gap
+## Writing through `l[i]` forgets how long `l` is — fixed in 0.75.0
 
 ```rust,ignore
 let mut l: List<u8> = List::filled(3, 0);
@@ -372,61 +372,46 @@ l[1] = 4;
 ```
 
 `l[i] = v` is `*l.index_mut(i) = v`, and `index_mut`'s result borrows
-the list, so the checker forgets everything about it, its length
+the list, so the checker forgot everything about it, its length
 included, though a `&mut u8` into the list can't change how long it is.
-Arrays and slices don't have it: their lengths aren't behind the
-borrow. `List::set` lends the list only for the call and says the
-length stays, so the graph's searches use it, `dist.set(t, ..)` for
-`dist[t] = ..`.
+`List::set` lends the list only for the call and says the length stays,
+so the graph's searches used it, `dist.set(t, ..)` for `dist[t] = ..`.
 
-It's worse for a list of structs. `self.nodes[from].out.push(e)` has
-the same problem (and the checker picks `index`, not `index_mut`, for a
+It was worse for a list of structs. `self.nodes[from].out.push(e)` had
+the same problem (and the checker picked `index`, not `index_mut`, for a
 method call's receiver: "cannot borrow `*a temporary` as mutable"), so
-`add_edge` couldn't say the node count stays, which a dependent adding
-two edges needs. It takes the node out instead and puts it back, each
-step lending the list only for a call:
+`add_edge` took the node out and put it back, each step lending the list
+only for a call, with an `else { loop {} }` that never ran. A
+dependent's `*g.node_mut(a) = x` forgot `node_count()` in the same way.
 
-```rust,ignore
-let last = self.nodes.len() - 1;
-let _ = self.nodes.swap(from, last);
-let Some(mut node) = self.nodes.pop() else { loop {} };   // never happens
-node.out.push((to, value));
-self.nodes.push(node);
-let _ = self.nodes.swap(from, last);
-```
+t 0.75.0 (t-lang step 59): a method whose result can write nothing but
+values of its type parameters can say what stays, as `index_mut`,
+`get_mut`, `iter_mut` and `as_mut_slice` now say the length does; and
+`l[i].push(x)` is `index_mut`'s. So `add_edge` is one line,
+`self.nodes[from].out.push((to, value))`, and `node_mut` says the node
+count stays, which `node_values_change` in the tests uses.
 
-The `else` can't return: the edge's value may be linear, and must be
-used up. A dependent's `*g.node_mut(a) = x` forgets `node_count()` in
-the same way, so the next `add_edge(a, b, ..)` needs a check
-(`graph/tests/lib.t`, `node_values_change`).
-
-## A postcondition can't say which variant — gap
+## A postcondition can't say which variant — fixed in 0.75.0
 
 `pop` gives `Some` exactly when there was something to pop, but neither
-`List::pop` nor `Heap::pop` can say so: a refinement can call only
-measures, and `is_some` isn't one. So `while let Some(v) = h.pop()`
-doesn't know `h` got shorter, `into_sorted` can't say how long its list
-is, and the heap it emptied, whose values may be linear, must still be
-used up:
+`List::pop` nor `Heap::pop` could say so: a refinement can call only
+measures, and `is_some` wasn't one. So `while let Some(v) = h.pop()`
+didn't know `h` got shorter.
 
-```rust,ignore
-while let Some(v) = h.pop() {
-    sorted.push(v);
-}
-// `h` is empty now, but the checker can't know.
-h.free_with(|v| sorted.push(v));
-```
+Since t 0.75.0 `is_some` is a measure, and both `pop`s say `r.is_some()
+== (old(self.len()) > 0)`. `into_sorted` still doesn't say how long its
+list is, for another reason: what's left of the heap is used up by
+`h.free_with(|v| sorted.push(v))` (a heap of linear values must be,
+even when it's empty), and a closure that captures `sorted` makes the
+checker forget its length everywhere in the function, not only after.
 
-The `loop {}` in `add_edge` above is the same: the list it pops isn't
-empty.
+## `swap` takes indices it checks — fixed in 0.75.0
 
-## `swap` takes indices it checks — unsure
-
-`List::swap(i, j)` and `<[T]>::swap` give a `bool`, whether both were in
-range, for any indices. The heap's are always proved, so it's `let _ =
+`List::swap(i, j)` and `<[T]>::swap` gave a `bool`, whether both were in
+range, for any indices. The heap's are always proved, so it was `let _ =
 self.items.swap(i, parent)`, three times in the heap and three in the
-graph. A `swap` that asks for proved indices and gives nothing would read
-better, beside the one that checks.
+graph. Since t 0.75.0 `swap` asks for proved indices, as `l[i]` does, and
+gives nothing.
 
 ## The heap — works
 
