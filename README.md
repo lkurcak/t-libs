@@ -2,8 +2,8 @@
 
 Libraries for [T](https://github.com/lkurcak/t-lang). Each is a package in
 a directory of its own, which a dependent names as its `subdirectory`.
-There's a hash map in `hashmap/` and a grid in `grid/`; a graph is to
-come. It's also an experiment: what writing a library's
+There's a hash map in `hashmap/`, a grid in `grid/`, a binary heap in
+`heap/` and a directed graph in `graph/`. It's also an experiment: what writing a library's
 interface in T is like. What got in the way is in
 [FRICTION.md](FRICTION.md).
 
@@ -71,6 +71,61 @@ width * height`, is a refinement the checker proves every method keeps
 coordinates the caller has proved inside the grid, `x < g.width()` and
 `y < g.height()`, and never panic; `at` is the one that checks. Nothing in
 it is `unsafe`, and nothing panics.
+
+## The heap
+
+```toml
+heap = { git = "https://github.com/lkurcak/t-libs", rev = "<full commit hash>", subdirectory = "heap" }
+```
+
+```text
+use heap::Heap;
+
+let mut h = Heap::new();
+h.push(3);
+h.push(1);
+h.pop()                                     // Some(1): least first
+```
+
+- `Heap<T>`: `new`, `from_list` (in linear time), `len`, `is_empty`,
+  `peek`, `push`, `pop`, `into_sorted`, `as_slice`, `free_with`. Pushing
+  and popping need `T: Ord`; tuples order by their first element, then
+  the next, so `(cost, node)` pops the cheapest.
+
+A binary heap in a list. The checker proves every index in moving a
+value up or down the tree inside the list, so nothing in it panics, and
+nothing is `unsafe`.
+
+## The graph
+
+```toml
+graph = { git = "https://github.com/lkurcak/t-libs", rev = "<full commit hash>", subdirectory = "graph" }
+```
+
+```text
+use graph::Graph;
+
+let mut g = Graph::new();
+let a = g.add_node("a");                    // nodes are 0, 1, ..
+let b = g.add_node("b");
+g.add_edge(a, b, 5);                        // a to b, costing 5
+g.cheapest_path(a, b, |w| *w)               // Some((5, [0, 1]))
+```
+
+- `Graph<N, E>`: a directed graph with a value of type `N` on each node
+  and of type `E` on each edge. `new`, `node_count`, `add_node`,
+  `add_edge`, `node`, `node_mut`, `edges`, `free_with`.
+- Searches: `breadth_first` (the nodes a node reaches, nearest first),
+  `shortest_path` (fewest edges), `topo_order` (`None` if there's a
+  cycle), and Dijkstra's `distances` and `cheapest_path`, with the cost
+  of an edge from a closure.
+
+A node is a number less than `node_count()`, and `add_node` says so of
+the number it gives and that there's one more node after, so a graph is
+built with no checks. Nodes aren't removed. It depends on `heap` (by
+path, inside this repository). Nothing in it is `unsafe`, and nothing
+panics. What T can't prove yet, that each edge goes to a node, is
+checked again where it's used: FRICTION.md says where.
 
 ## Developing
 
