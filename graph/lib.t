@@ -135,7 +135,7 @@ impl<N, E> Graph<N, E> {
         &self,
         from: { v: usize | v < self.node_count() },
         to: { v: usize | v < self.node_count() },
-    ) -> Option<List<usize>> with alloc {
+    ) -> Option<List<{ v: usize | v < self.node_count() }>> with alloc {
         let n = self.nodes.len();
         // `parent[v]` is the node `v` was first reached from; `from`'s is
         // itself.
@@ -221,7 +221,7 @@ impl<N, E> Graph<N, E> {
         from: { v: usize | v < self.node_count() },
         to: { v: usize | v < self.node_count() },
         weight: F,
-    ) -> Option<(u64, List<usize>)> with {alloc, e} {
+    ) -> Option<(u64, List<{ v: usize | v < self.node_count() }>)> with {alloc, e} {
         let tree = self.dijkstra(from, weight);
         let Some(cost) = tree.cost[to] else { return None };
         let path = walk_back(tree.cost.len(), &tree.parent, from, to)?;
@@ -283,8 +283,8 @@ fn walk_back(
     parent: &{ p: List<Option<{ q: usize | q < n }>> | p.len() == n },
     from: usize,
     to: { t: usize | t < n },
-) -> Option<List<usize>> with alloc {
-    let mut path: List<usize> = List::new();
+) -> Option<List<{ v: usize | v < n }>> with alloc {
+    let mut path: List<{ v: usize | v < n }> = List::new();
     let mut v: { v: usize | v < n } = to;
     loop {
         path.push(v);
@@ -295,10 +295,10 @@ fn walk_back(
         v = p;
     }
     // It was made from `to` back: turn it round.
-    let n = path.len();
+    let len = path.len();
     let mut i: usize = 0;
-    while i < n / 2 invariant n == path.len() {
-        path.swap(i, n - 1 - i);
+    while i < len / 2 invariant len == path.len() {
+        path.swap(i, len - 1 - i);
         i = i + 1;
     }
     Some(path)
