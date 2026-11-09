@@ -320,7 +320,7 @@ argument be a refinement: `new` gives an `Option<{ g: Grid<T> |
 g.width() == width && g.height() == height }>`, and the tests no longer
 ask.
 
-## What's in a list can't be refined — gap
+## What's in a list can't be refined — fixed in 0.76.0
 
 The graph's invariant is that every edge goes to a node: each edge's
 target is less than `node_count()`. `add_edge` asks for that, so it's
@@ -360,6 +360,25 @@ n }, E)>`, a `Heap<(u64, { v: usize | v < n })>`, a queue of `List<{ v:
 usize | v < n }>`, where `n` is the node count; and for the graph's own
 field, a refinement that names the list it's in: every target in
 `nodes` is less than `nodes.len()`.
+
+t 0.76.0 lets any type argument be a refinement, kept by parametricity:
+generic code can only keep and give back the values it's given, so
+`List<{ t: usize | t < n }>`'s `push` takes, and its `index`, `pop` and
+iterator give, numbers below `n`. The graph says so of its own field:
+
+```rust,ignore
+export struct Graph<N, E> { nodes: List<Node<N, E, { t: usize | t < nodes.len() }>> }
+```
+
+which `add_node` keeps (what was below the old count is below the new
+one) and `add_edge` proves. `node_id` is gone; the queues are `List<{ v:
+usize | v < n }>`, Dijkstra's heap a `Heap<(u64, { v: usize | v < n })>`
+(`Ord` makes no values, so a refined type can be what it bounds), the
+parents `List<Option<{ p: usize | p < n }>>`, and `walk_back` indexes
+them. `edges`, `breadth_first` and `topo_order` give refined node numbers,
+so a dependent can pass them back with no check. `topo_order` still checks
+a count it knows is positive: that's a fact about how many edges are in
+the lists, which no element's refinement says.
 
 ## Writing through `l[i]` forgets how long `l` is — fixed in 0.75.0
 
