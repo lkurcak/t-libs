@@ -113,11 +113,13 @@ fn node_values_change() {
     let mut g: Graph<u32, ()> = Graph::new();
     let a = g.add_node(1);
     *g.node_mut(a) = 2;
-    // `node_mut`'s result borrows `g`, so the checker forgets how many
-    // nodes `g` has, though a `&mut u32` can't change it (FRICTION.md).
-    if a < g.node_count() {
-        assert_eq(g.node(a), &2);
-    }
+    // What's written through `node_mut`'s result is a `u32`, which can't
+    // change how many nodes there are, and it says so (t 0.75.0).
+    assert_eq(g.node(a), &2);
+    let b = g.add_node(5);
+    g.add_edge(a, b, ());
+    *g.node_mut(b) += 1;
+    assert_eq(g.node(b), &6);
 }
 
 /// Values that must be used up, not dropped.

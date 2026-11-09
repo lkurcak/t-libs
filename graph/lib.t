@@ -70,27 +70,17 @@ impl<N, E> Graph<N, E> {
         to: { v: usize | v < self.node_count() },
         value: E,
     ) with alloc ensures self.node_count() == old(self.node_count()) {
-        // `self.nodes[from].out.push(..)` would lend the list past the call
-        // that finds the node, so the checker would forget how long it is
-        // (FRICTION.md). So the node is taken out of the list, the edge
-        // added, and the node put back, each lending the list only for a
-        // call: a swap with the last node, a pop, a push, a swap back.
-        let last = self.nodes.len() - 1;
-        let _ = self.nodes.swap(from, last);
-        // There's a node to pop, the list isn't empty; but `pop` can't say
-        // so. This `else` never runs.
-        let Some(mut node) = self.nodes.pop() else {
-            loop {}
-        };
-        node.out.push((to, value));
-        self.nodes.push(node);
-        let _ = self.nodes.swap(from, last);
+        // `index_mut` keeps the list's length, whatever's written through
+        // what it gives (t 0.75.0), so the node count stays.
+        self.nodes[from].out.push((to, value));
     }
 
-    /// Node `id`'s value, to change.
-    export fn node_mut(&mut self, id: { id: usize | id < self.node_count() }) -> &mut N {
-        &mut self.nodes[id].value
-    }
+    /// Node `id`'s value, to change. What's written through it is an `N`,
+    /// so the node count stays.
+    export fn node_mut(&mut self, id: { id: usize | id < self.node_count() }) -> &mut N
+    ensures
+        self.node_count() == old(self.node_count()),
+    { &mut self.nodes[id].value }
 
     /// Gives each node's value to `f`, and each edge's to `g`.
     export fn free_with<effect e, F: FnMut(N) with e + Discard, G: FnMut(E) with e + Discard>(
@@ -312,7 +302,7 @@ with alloc
     let n = path.len();
     let mut i: usize = 0;
     while i < n / 2 invariant n == path.len() {
-        let _ = path.swap(i, n - 1 - i);
+        path.swap(i, n - 1 - i);
         i = i + 1;
     }
     Some(path)

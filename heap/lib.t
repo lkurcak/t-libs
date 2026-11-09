@@ -62,7 +62,7 @@ impl<T: Ord> Heap<T> {
     }
 
     /// Takes the least value out, or gives `None` if it's empty.
-    export fn pop(&mut self) -> Option<T>
+    export fn pop(&mut self) -> { r: Option<T> | r.is_some() == (old(self.len()) > 0) }
     ensures
         self.len() + 1 == old(self.len()) || (self.len() == 0 && old(self.len()) == 0),
     {
@@ -70,7 +70,7 @@ impl<T: Ord> Heap<T> {
         if n == 0 {
             return None;
         }
-        let _ = self.items.swap(0, n - 1);
+        self.items.swap(0, n - 1);
         let least = self.items.pop();
         self.down(0);
         least
@@ -83,9 +83,11 @@ impl<T: Ord> Heap<T> {
         while let Some(v) = h.pop() {
             sorted.push(v);
         }
-        // `h` is empty now, but the checker can't know (a postcondition
-        // can't say which variant `pop` gives), and a `T` may be linear:
-        // so what's left, which is nothing, is used up too.
+        // `h` is empty now, and the checker knows it (t 0.75.0), but a heap
+        // of values that may be linear is used up all the same: with
+        // nothing. The closure captures `sorted`, so the checker forgets
+        // its length everywhere here, which is why the result isn't
+        // refined (FRICTION.md).
         h.free_with(|v| sorted.push(v));
         sorted
     }
@@ -97,7 +99,7 @@ impl<T: Ord> Heap<T> {
         while i > 0 invariant i < self.items.len() {
             let parent = (i - 1) / 2;
             if self.items[i] < self.items[parent] {
-                let _ = self.items.swap(i, parent);
+                self.items.swap(i, parent);
                 i = parent;
             } else {
                 break;
@@ -121,7 +123,7 @@ impl<T: Ord> Heap<T> {
                 left
             };
             if self.items[child] < self.items[i] {
-                let _ = self.items.swap(i, child);
+                self.items.swap(i, child);
                 i = child;
             } else {
                 break;
