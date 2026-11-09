@@ -176,11 +176,17 @@ impl<T: Int> Hash for T {
 }
 ```
 
-## No tuples — unsure
+## No tuples — unsure (fixed in t 0.74.0)
 
 Iterating gives `&Entry<K, V>` (`e.key`, `e.value`) and `iter_mut` an
 `EntryMut { key: &K, value: &mut V }`, where Rust gives `(&K, &V)`. Named
 fields read fine; it's two more exported types.
+
+With tuples (t 0.74.0, step 58) the map gives what Rust's does: `iter`
+gives `(&K, &V)`, `iter_mut` `(&K, &mut V)`, `remove_entry` an
+`Option<(K, V)>` and `free_with` each `(K, V)`; `Entry` is private storage
+and `EntryMut` is gone. `for (k, v) in m.iter()` and `|(k, v)| ..` take
+them apart.
 
 ## The hash can't be keyed — by design
 
