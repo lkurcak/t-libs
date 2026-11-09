@@ -12,7 +12,8 @@
 //!
 //! A node's number is less than `node_count()`, which the checker proves
 //! of each number the graph is given, so nothing takes a node that isn't
-//! there. Nodes aren't removed, so a node's number stays good.
+//! there. Nodes aren't removed, so a node's number stays good: every
+//! edge's target, and every node a search gives, says so in its type.
 
 use alloc::list::List;
 use alloc::raw::out_of_memory;
@@ -20,23 +21,25 @@ use core::num::checked_add;
 use core::slice::Iter;
 use heap::Heap;
 
-/// A node's value and the edges that leave it: each the node it goes to
-/// and the edge's value.
+/// A node's value and the edges that leave it: each the node it goes to,
+/// an `I`, and the edge's value.
 #[derive(
-    Discard where N: Discard, E: Discard,
-    Send where N: Send, E: Send,
-    Sync where N: Sync, E: Sync,
+    Discard where N: Discard, E: Discard, I: Discard,
+    Send where N: Send, E: Send, I: Send,
+    Sync where N: Sync, E: Sync, I: Sync,
 )]
-struct Node<N, E> { value: N, out: List<(usize, E)> }
+struct Node<N, E, I> { value: N, out: List<(I, E)> }
 
 /// Nodes with values of type `N`, and edges between them with values of
-/// type `E`.
+/// type `E`. Each edge goes to a node: its target is less than how many
+/// there are, which `add_edge` proves, and which stays so, as nodes aren't
+/// removed (t 0.76.0 says so of what's in the list, and of the list itself).
 #[derive(
     Discard where N: Discard, E: Discard,
     Send where N: Send, E: Send,
     Sync where N: Sync, E: Sync,
 )]
-export struct Graph<N, E> { nodes: List<Node<N, E>> }
+export struct Graph<N, E> { nodes: List<Node<N, E, { t: usize | t < nodes.len() }>> }
 
 impl<N, E> Graph<N, E> {
     /// A graph with no nodes.
@@ -97,38 +100,29 @@ impl<N, E> Graph<N, E> {
 
     /// The edges that leave node `from`, each the node it goes to and its
     /// value, in the order they were added.
-    export fn edges(&self, from: { v: usize | v < self.node_count() }) -> Iter<(usize, E)> {
-        self.nodes[from].out.iter()
-    }
-
-    /// `i`, if it's the number of a node, which every edge's target is.
-    ///
-    /// Each target was proved a node when the edge was added, and nodes
-    /// aren't removed; but what's in a list can't be refined, so it's
-    /// checked again where it's used, and the `None` never happens.
-    fn node_id(&self, i: usize) -> Option<{ v: usize | v < self.node_count() }> {
-        if i < self.nodes.len() { Some(i) } else { None }
-    }
+    export fn edges(
+        &self,
+        from: { v: usize | v < self.node_count() },
+    ) -> Iter<({ t: usize | t < self.node_count() }, E)> { self.nodes[from].out.iter() }
 
     /// The nodes `start` reaches: `start` first, then those one edge away,
     /// then those two away, and so on.
-    export fn breadth_first(&self, start: { v: usize | v < self.node_count() }) -> List<usize>
-    with alloc
-    {
+    export fn breadth_first(
+        &self,
+        start: { v: usize | v < self.node_count() },
+    ) -> List<{ v: usize | v < self.node_count() }> with alloc {
         let mut seen = List::filled(self.nodes.len(), false);
         seen.set(start, true);
-        let mut order: List<usize> = List::new();
+        let mut order: List<{ v: usize | v < self.node_count() }> = List::new();
         order.push(start);
         let mut next: usize = 0;
         while next < order.len() {
             let v = order[next];
             next = next + 1;
-            let Some(v) = self.node_id(v) else { continue };
-            for (to, _) in self.nodes[v].out.iter() {
-                let Some(t) = self.node_id(*to) else { continue };
-                if !seen[t] {
-                    seen.set(t, true);
-                    order.push(t);
+            for (t, _) in self.nodes[v].out.iter() {
+                if !seen[*t] {
+                    seen.set(*t, true);
+                    order.push(*t);
                 }
             }
         }
@@ -142,47 +136,45 @@ impl<N, E> Graph<N, E> {
         from: { v: usize | v < self.node_count() },
         to: { v: usize | v < self.node_count() },
     ) -> Option<List<usize>> with alloc {
+        let n = self.nodes.len();
         // `parent[v]` is the node `v` was first reached from; `from`'s is
         // itself.
-        let mut parent: List<Option<usize>> = List::filled(self.nodes.len(), None);
+        let mut parent: List<Option<{ p: usize | p < n }>> = List::filled(n, None);
         parent.set(from, Some(from));
-        let mut queue: List<usize> = List::new();
+        let mut queue: List<{ v: usize | v < n }> = List::new();
         queue.push(from);
         let mut next: usize = 0;
         while next < queue.len() && parent[to].is_none() {
             let v = queue[next];
             next = next + 1;
-            let Some(v) = self.node_id(v) else { continue };
             for (t, _) in self.nodes[v].out.iter() {
-                let Some(t) = self.node_id(*t) else { continue };
-                if parent[t].is_none() {
-                    parent.set(t, Some(v));
-                    queue.push(t);
+                if parent[*t].is_none() {
+                    parent.set(*t, Some(v));
+                    queue.push(*t);
                 }
             }
         }
-        walk_back(&parent, from, to)
+        walk_back(n, &parent, from, to)
     }
 
     /// The nodes, in an order in which each edge goes forward, or `None`
     /// if there's a cycle, so there's no such order.
-    export fn topo_order(&self) -> Option<List<usize>> with alloc {
+    export fn topo_order(&self) -> Option<List<{ v: usize | v < self.node_count() }>> with alloc {
         let n = self.nodes.len();
         // How many edges go into each node that's not yet in the order.
         let mut into = List::filled(n, 0usize);
         for node in self.nodes.iter() {
-            for (to, _) in node.out.iter() {
-                let Some(t) = self.node_id(*to) else { continue };
-                let k = into[t];
+            for (t, _) in node.out.iter() {
+                let k = into[*t];
                 // Each edge is in memory, so there can't be more of them
                 // than a `usize` counts.
                 if k == core::num::greatest::<usize>() {
                     out_of_memory();
                 }
-                into.set(t, k + 1);
+                into.set(*t, k + 1);
             }
         }
-        let mut order: List<usize> = List::new();
+        let mut order: List<{ v: usize | v < self.node_count() }> = List::new();
         for v in 0..n {
             if into[v] == 0 {
                 order.push(v);
@@ -192,18 +184,16 @@ impl<N, E> Graph<N, E> {
         while next < order.len() {
             let v = order[next];
             next = next + 1;
-            let Some(v) = self.node_id(v) else { continue };
-            for (to, _) in self.nodes[v].out.iter() {
-                let Some(t) = self.node_id(*to) else { continue };
-                let k = into[t];
+            for (t, _) in self.nodes[v].out.iter() {
+                let k = into[*t];
                 // `k > 0`: this edge is one of those counted. T can't say
-                // so, either.
+                // so: it's a count of what's in the lists, not of one.
                 if k == 0 {
                     continue;
                 }
-                into.set(t, k - 1);
+                into.set(*t, k - 1);
                 if k == 1 {
-                    order.push(t);
+                    order.push(*t);
                 }
             }
         }
@@ -234,7 +224,7 @@ impl<N, E> Graph<N, E> {
     ) -> Option<(u64, List<usize>)> with {alloc, e} {
         let tree = self.dijkstra(from, weight);
         let Some(cost) = tree.cost[to] else { return None };
-        let path = walk_back(&tree.parent, from, to)?;
+        let path = walk_back(tree.cost.len(), &tree.parent, from, to)?;
         Some((cost, path))
     }
 
@@ -247,29 +237,28 @@ impl<N, E> Graph<N, E> {
     ) -> { t: Tree | t.cost.len() == self.node_count() } with {alloc, e} {
         let n = self.nodes.len();
         let mut cost: List<Option<u64>> = List::filled(n, None);
-        let mut parent: List<Option<usize>> = List::filled(n, None);
+        let mut parent: List<Option<{ p: usize | p < n }>> = List::filled(n, None);
         let mut done = List::filled(n, false);
         cost.set(start, Some(0));
         parent.set(start, Some(start));
-        let mut todo: Heap<(u64, usize)> = Heap::new();
+        // Entries `(cost, node)`, cheapest first: each node is one.
+        let mut todo: Heap<(u64, { v: usize | v < n })> = Heap::new();
         todo.push((0, start));
         while let Some((d, v)) = todo.pop() {
-            let Some(v) = self.node_id(v) else { continue };
             if done[v] {
                 continue;
             }
             done.set(v, true);
             for (t, w) in self.nodes[v].out.iter() {
-                let Some(t) = self.node_id(*t) else { continue };
                 let Some(c) = checked_add(d, weight(w)) else { continue };
-                let better = match cost[t] {
+                let better = match cost[*t] {
                     Some(old) => c < old,
                     None => true,
                 };
                 if better {
-                    cost.set(t, Some(c));
-                    parent.set(t, Some(v));
-                    todo.push((c, t));
+                    cost.set(*t, Some(c));
+                    parent.set(*t, Some(v));
+                    todo.push((c, *t));
                 }
             }
         }
@@ -281,22 +270,29 @@ impl<N, E> Graph<N, E> {
 /// cheapest path to it and the node before it on that path, or `None` if
 /// it isn't reached.
 #[derive(Discard)]
-struct Tree { cost: List<Option<u64>>, parent: { p: List<Option<usize>> | p.len() == cost.len() } }
+struct Tree {
+    cost: List<Option<u64>>,
+    parent: { p: List<Option<{ q: usize | q < cost.len() }>> | p.len() == cost.len() },
+}
 
 /// The path from `from` to `to`, following from `to` the node before each
-/// in `parent` back to `from`; or `None` if `to` wasn't reached.
-fn walk_back(parent: &List<Option<usize>>, from: usize, to: usize) -> Option<List<usize>>
-with alloc
-{
+/// in `parent` back to `from`; or `None` if `to` wasn't reached. Each node
+/// is one of the `n`.
+fn walk_back(
+    n: usize,
+    parent: &{ p: List<Option<{ q: usize | q < n }>> | p.len() == n },
+    from: usize,
+    to: { t: usize | t < n },
+) -> Option<List<usize>> with alloc {
     let mut path: List<usize> = List::new();
-    let mut v = to;
+    let mut v: { v: usize | v < n } = to;
     loop {
         path.push(v);
         if v == from {
             break;
         }
-        let Some(Some(p)) = parent.get(v) else { return None };
-        v = *p;
+        let Some(p) = parent[v] else { return None };
+        v = p;
     }
     // It was made from `to` back: turn it round.
     let n = path.len();

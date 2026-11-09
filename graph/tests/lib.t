@@ -46,6 +46,34 @@ fn nodes_and_edges() {
     assert_eq(&g.edges(4).count(), &0);
 }
 
+/// What `edges` and the searches give are nodes, so they can go straight
+/// back to the graph, with no check (t 0.76.0: a list's elements can be
+/// refined).
+#[test]
+fn targets_are_nodes() {
+    let g = diamond();
+    let mut names: List<char> = List::new();
+    for (t, _) in g.edges(0) {
+        names.push(*g.node(*t));
+    }
+    for v in g.breadth_first(0).iter() {
+        names.push(*g.node(*v));
+    }
+    let Some(order) = g.topo_order() else { panic("no cycle") };
+    if let Some(first) = order.first() {
+        names.push(*g.node(*first));
+    }
+    assert_eq(&names, &chars(['b', 'c', 'a', 'b', 'c', 'd', 'a'].as_slice()));
+}
+
+fn chars(s: &[char]) -> List<char> with alloc {
+    let mut l = List::new();
+    for c in s.iter() {
+        l.push(*c);
+    }
+    l
+}
+
 #[test]
 fn breadth_first() {
     let g = diamond();
