@@ -63,7 +63,18 @@ fn targets_are_nodes() {
     if let Some(first) = order.first() {
         names.push(*g.node(*first));
     }
-    assert_eq(&names, &chars(['b', 'c', 'a', 'b', 'c', 'd', 'a'].as_slice()));
+    let Some(path) = g.shortest_path(0, 3) else { panic("d is reached") };
+    for v in path.iter() {
+        names.push(*g.node(*v));
+    }
+    let Some((_, path)) = g.cheapest_path(0, 3, |w| *w) else { panic("d is reached") };
+    for v in path.iter() {
+        names.push(*g.node(*v));
+    }
+    assert_eq(
+        &names,
+        &chars(['b', 'c', 'a', 'b', 'c', 'd', 'a', 'a', 'b', 'd', 'a', 'c', 'd'].as_slice()),
+    );
 }
 
 fn chars(s: &[char]) -> List<char> with alloc {

@@ -122,10 +122,11 @@ g.cheapest_path(a, b, |w| *w)               // Some((5, [0, 1]))
 
 A node is a number less than `node_count()`, and `add_node` says so of
 the number it gives and that there's one more node after, so a graph is
-built with no checks. Nodes aren't removed. It depends on `heap` (by
-path, inside this repository). Nothing in it is `unsafe`, and nothing
-panics. What T can't prove yet, that each edge goes to a node, is
-checked again where it's used: FRICTION.md says where.
+built with no checks. Nodes aren't removed, so a node's number stays
+good: each edge's target, and each node a search gives, paths' too, says
+in its type that it's less than `node_count()`, so a dependent uses them
+with no checks either. It depends on `heap` (by path, inside this
+repository). Nothing in it is `unsafe`, and nothing panics.
 
 ## Developing
 
