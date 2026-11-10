@@ -3,8 +3,12 @@
 Libraries written in T (the repo was t-hashmap until 2026-11-07). Each package is
 a directory with a `lib.t` (dependents name it by `subdirectory`, t
 0.66.0+): the hash map in `hashmap/`, the grid in `grid/`, the binary
-heap in `heap/`, and the graph in `graph/` (which depends on `heap` by
-path). There's no workspace concept yet: `tests/run.sh` loops over
+heap in `heap/`, the graph in `graph/` (which depends on `heap` by
+path), random numbers in `rand/` (core only) and a terminal's keys and
+other screen in `term/` (std). `rand` and `term` came out of t-maze and
+t-nonograms (`~/repos/games/`), which both use them; their
+`tests/terminal.py` are what test `term::read` and `Screen` on a
+pseudo-terminal. There's no workspace concept yet: `tests/run.sh` loops over
 `*/lib.t`. The hash map is a library written in T, the language at `~/repos/tooling/t-lang`
 (GitHub: lkurcak/t-lang). Like tcalc (`~/repos/tooling/tcalc`), its real
 purpose is to find out what using T is like, here for a library: writing

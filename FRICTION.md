@@ -14,7 +14,8 @@ for them.
 
 Written against `t` 0.40.0; updated for 0.41.0, 0.42.0 and 0.43.0; the
 grid's entries against 0.67.0, updated to 0.70.0; the heap's and the
-graph's against 0.74.0, updated to 0.75.0.
+graph's against 0.74.0, updated to 0.75.0; `rand`'s and `term`'s against
+0.77.0.
 
 ## Looking up `String` keys by `&str` — unsure
 
@@ -431,6 +432,49 @@ range, for any indices. The heap's are always proved, so it was `let _ =
 self.items.swap(i, parent)`, three times in the heap and three in the
 graph. Since t 0.75.0 `swap` asks for proved indices, as `l[i]` does, and
 gives nothing.
+
+## A variant's field can't be refined — gap
+
+`term`'s decoder, part way through a character in UTF-8, holds the
+number so far, which has at most 15 bits before the next byte's 6 are
+shifted in. The variant can't say so:
+
+```rust,ignore
+enum State { .., Utf8(u8, { c: u32 | c < 0x8000 }, u32) }
+// a refinement can only be the whole type of a parameter, a result, a
+// `let` or a struct's field
+```
+
+so `code << 6` isn't proved, and the shift masks first, to tell the
+checker what it can't be told: `((code & 0x7FFF) << 6) | (b & 0x3F) as
+u32`. docs/08.1 leaves refinements on variants out because "positional
+fields have no names to name", but this one names nothing but itself, as
+a type argument's refinement does (`Option<{ c: u32 | c < 0x8000 }>`
+works since 0.76.0). A struct as the payload would do, at the cost of a
+type for one field.
+
+## `read` and `Screen` can't be tested here — unsure
+
+They take `std::io::Raw` and `Stdout`, which only `Os` gives, and a test
+has no terminal. So `term`'s tests are the decoder's, from bytes, and the
+games' `tests/terminal.py` play them on a pseudo-terminal. Taking a trait
+instead would let a test fake a terminal, but `core::io` has `Read` and no
+way to wait for input with a deadline, which escape alone needs.
+
+## Random numbers and keys — works
+
+- `below(n: { n | n > 0 }) -> { r | r < n }` with a rejection loop
+  proves as the plain remainder did, and for small `n` gives the same
+  numbers, so neither game's transcript changed.
+- `chance` takes `{ p: u64 | p <= 100 }`; t-maze's `LOOPS`, a `const`, is
+  proved to be.
+- Char patterns and renamed imports make a game's key map one `match`:
+  `use term::Key::{self as Pressed, Char, Ctrl}`, then
+  `Pressed::Up | Char('k') => ..`, `Char('q') | Ctrl('c') | Pressed::Escape
+  => Quit`.
+- `#![warn(implicit_panics)]` in each library's root, with
+  `--deny-warnings`, checks the README's "nothing in it panics"; only the
+  shift above needed help.
 
 ## The heap — works
 
