@@ -1,0 +1,4 @@
+libraries = ["alloc"]
+
+[dependencies]
+rand = { path = ".." }

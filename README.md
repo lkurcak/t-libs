@@ -3,7 +3,8 @@
 Libraries for [T](https://github.com/lkurcak/t-lang). Each is a package in
 a directory of its own, which a dependent names as its `subdirectory`.
 There's a hash map in `hashmap/`, a grid in `grid/`, a binary heap in
-`heap/` and a directed graph in `graph/`. It's also an experiment: what writing a library's
+`heap/`, a directed graph in `graph/`, random numbers in `rand/`, and a
+terminal's keys and other screen in `term/`. It's also an experiment: what writing a library's
 interface in T is like. What got in the way is in
 [FRICTION.md](FRICTION.md).
 
@@ -127,6 +128,70 @@ good: each edge's target, and each node a search gives, paths' too, says
 in its type that it's less than `node_count()`, so a dependent uses them
 with no checks either. It depends on `heap` (by path, inside this
 repository). Nothing in it is `unsafe`, and nothing panics.
+
+## Random numbers
+
+```toml
+rand = { git = "https://github.com/lkurcak/t-libs", rev = "<full commit hash>", subdirectory = "rand" }
+```
+
+```text
+use rand::Rng;
+
+let mut rng = Rng::new(os.entropy.u64()?);  // or a seed of your own
+rng.below(6)                                // 0 to 5, each as likely
+rng.chance(25)                              // true a quarter of the time
+rng.shuffle(l.as_mut_slice())               // l in a random order
+```
+
+- `Rng`: `new` (from a seed), `u64`, `below` (`n > 0` in, `r < n` out),
+  `chance` (a percentage, at most 100), `shuffle` (Fisher-Yates, of a
+  slice).
+
+SplitMix64: quick, and good enough for games and tests, but not for
+secrets. The same seed gives the same numbers, which is what makes a
+game's level repeatable. `below` draws again the few numbers that would
+make taking a remainder favour small results, so each is as likely. It
+needs only core (no `alloc`, no `std`): the seed is the caller's, as from
+`os.entropy`. An `Rng` isn't `Copy`, since a copy would give the same
+numbers again. Nothing in it panics.
+
+## The terminal
+
+```toml
+term = { git = "https://github.com/lkurcak/t-libs", rev = "<full commit hash>", subdirectory = "term" }
+```
+
+```text
+use term::{Key, Screen};
+
+let mut raw = os.stdin.raw()?;              // keys as they're pressed
+let mut screen = Screen::enter(&mut os.stdout)?;
+loop {
+    screen.clear()?;
+    screen.out().line("q quits")?;
+    match term::read(&mut raw, os.clock)? {
+        Key::Char('q') | Key::Ctrl('c') | Key::Escape => break,
+        Key::Up => ..,
+        _ => {},
+    }
+}
+```
+
+- `read`: the next key from `std::io::Raw`.
+- `Key`: `Char(char)`, `Ctrl(char)` (`Ctrl('c')` is Ctrl-C), the arrows,
+  `Home`, `End`, `PageUp`, `PageDown`, `Insert`, `Delete`, `Enter`,
+  `Tab`, `Backspace`, `Escape`, and `Other` for keys it doesn't know (F1,
+  Alt with a letter). An arrow with Shift, Alt or Ctrl held is the arrow.
+- `Decoder`: keys from bytes, a byte at a time, which `read` uses:
+  `feed` a byte, and `pause` when nothing more comes (escape alone is the
+  escape key). Characters are UTF-8, and a sequence that isn't a key,
+  such as the mouse's, is read whole, as `Other`.
+- `Screen`: the terminal's other screen, with the cursor hidden; dropping
+  it goes back to what was on the terminal before. `enter`, `out`,
+  `clear`.
+
+Needs `std`, for the terminal. Nothing in it panics.
 
 ## Developing
 
