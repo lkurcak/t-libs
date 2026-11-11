@@ -118,8 +118,13 @@ enum State {
     Ss3,
     /// Part way through a character in UTF-8: how many bytes are still to
     /// come, its number so far, and the least number it can be with as
-    /// many bytes as it has.
-    Utf8(u8, u32, u32),
+    /// many bytes as it has. A character has at most 21 bits, and each byte
+    /// to come brings 6, so the number so far has at most `21 - 6 * left`.
+    Utf8(
+        { left: u8 | left >= 1 && left <= 3 },
+        { c: u32 | (left == 1 && c < 0x8000) || (left == 2 && c < 0x200) || (left == 3 && c < 8) },
+        u32,
+    ),
 }
 
 impl Decoder {
@@ -186,9 +191,7 @@ fn step(state: State, b: u8) -> (State, Option<Key>) {
             if b & 0xC0 != 0x80 {
                 return done(Key::Other);
             }
-            // The number so far has at most 15 bits, as a character has
-            // at most 21: the mask says so to the checker.
-            let code = ((code & 0x7FFF) << 6) | (b & 0x3F) as u32;
+            let code = (code << 6) | (b & 0x3F) as u32;
             if left > 1 {
                 return (State::Utf8(left - 1, code, least), None);
             }

@@ -433,7 +433,7 @@ self.items.swap(i, parent)`, three times in the heap and three in the
 graph. Since t 0.75.0 `swap` asks for proved indices, as `l[i]` does, and
 gives nothing.
 
-## A variant's field can't be refined — gap
+## A variant's field can't be refined — fixed in t 0.81.0
 
 `term`'s decoder, part way through a character in UTF-8, holds the
 number so far, which has at most 15 bits before the next byte's 6 are
@@ -452,6 +452,12 @@ fields have no names to name", but this one names nothing but itself, as
 a type argument's refinement does (`Option<{ c: u32 | c < 0x8000 }>`
 works since 0.76.0). A struct as the payload would do, at the cost of a
 type for one field.
+
+(Fixed in t 0.81.0: a variant's field can be refined, naming the fields
+before it by their binders. Only the number's own bound wasn't enough:
+`Utf8(left - 1, code, ..)` needs it in terms of `left`, `(left == 1 && c <
+0x8000) || (left == 2 && c < 0x200) || (left == 3 && c < 8)`. The mask is
+gone.)
 
 ## `read` and `Screen` can't be tested here — unsure
 
