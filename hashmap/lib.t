@@ -143,9 +143,10 @@ impl<K: Hash + Eq, V> Map<K, V> {
     }
 
     /// Doubles the buckets, from `FIRST` at first, and puts each key in its
-    /// new one.
+    /// new one. The closures' only change to `self` is `put`, which keeps
+    /// `len`, so they keep it too.
     #[blame_caller]
-    fn grow(&mut self) with alloc {
+    fn grow(&mut self) with alloc ensures self.len() == old(self.len()) {
         let n = self.buckets.len();
         let more = if n == 0 {
             FIRST
@@ -174,14 +175,12 @@ impl<K: Hash + Eq + Discard, V> Map<K, V> {
         if let Some(v) = self.get_mut(&key) {
             return Some(replace(v, value));
         }
-        if self.len >= self.buckets.len() {
-            self.grow();
-        }
         // A map as big as a `usize` can count can't count one more key.
-        // The check is after `grow`, which can't say it keeps `len`: its
-        // closure captures `self` (FRICTION.md); `put` says so.
         if self.len == greatest() {
             out_of_memory();
+        }
+        if self.len >= self.buckets.len() {
+            self.grow();
         }
         self.put(Entry { key, value });
         self.len = self.len + 1;
