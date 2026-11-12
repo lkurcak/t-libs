@@ -117,6 +117,11 @@ would ensure. The check sits between them. Similar in `remove_entry`: `m ==
 bucket.len()` is lost in a loop that lends `bucket`, so the loop compares
 with `bucket.len()` each time instead.
 
+Since t 0.84.0 (t-lang step 69) a closure's capture forgets `*self` only
+where it's made, and keeps what the closure's body keeps of it: the only
+change `grow`'s closures make to `self` is `put`, which keeps `len()`, so
+`grow` ensures it too, and `insert` checks before growing.
+
 ## No `if let` — fixed in 0.41.0
 
 Four places want "return early if it's there":
@@ -424,6 +429,9 @@ list is, for another reason: what's left of the heap is used up by
 `h.free_with(|v| sorted.push(v))` (a heap of linear values must be,
 even when it's empty), and a closure that captures `sorted` makes the
 checker forget its length everywhere in the function, not only after.
+Since t 0.84.0 it's forgotten only from the closure on, but that's enough
+to lose it: the closure pushes, and nothing says `free_with` never calls it
+on an empty heap.
 
 ## `swap` takes indices it checks — fixed in 0.75.0
 

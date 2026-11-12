@@ -85,8 +85,8 @@ impl<T: Ord> Heap<T> {
         }
         // `h` is empty now, and the checker knows it (t 0.75.0), but a heap
         // of values that may be linear is used up all the same: with
-        // nothing. The closure captures `sorted`, so the checker forgets
-        // its length everywhere here, which is why the result isn't
+        // nothing. The closure captures `sorted` and pushes, so the checker
+        // forgets its length from here on, which is why the result isn't
         // refined (FRICTION.md).
         h.free_with(|v| sorted.push(v));
         sorted
