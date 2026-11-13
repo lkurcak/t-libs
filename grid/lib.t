@@ -74,6 +74,28 @@ impl<T> Grid<T> {
         self.cells.slice(start..start + self.width)
     }
 
+    /// Every cell's value, row by row, to change: the cell in column `x`
+    /// of row `y` is at `y * width() + x`. What's written through it is
+    /// `T`s, so the grid is as big after.
+    export fn cells_mut(
+        &mut self,
+    ) -> { s: &mut [T] | s.len() == old(self.width()) * old(self.height()) }
+    ensures
+        self.width() == old(self.width()) && self.height() == old(self.height()),
+    { self.cells.as_mut_slice() }
+
+    /// Row `y`'s values, to change, from column 0 on.
+    export fn row_mut(
+        &mut self,
+        y: { y: usize | y < self.height() },
+    ) -> { r: &mut [T] | r.len() == old(self.width()) }
+    ensures
+        self.width() == old(self.width()) && self.height() == old(self.height()),
+    {
+        let start = y * self.width;
+        self.cells.slice_mut(start..start + self.width)
+    }
+
     /// Each cell's value, row by row.
     export fn iter(&self) -> Iter<T> { self.cells.iter() }
 
@@ -103,6 +125,21 @@ impl<T: Discard> Grid<T> {
 }
 
 impl<T> Grid<T> {
+    /// A grid `width` wide and `height` high of `cells`, row by row: the
+    /// cell in column `x` of row `y` is `cells[y * width + x]`.
+    export fn from_cells(
+        width: usize,
+        height: usize,
+        cells: { c: List<T> | c.len() == width * height },
+    ) -> { g: Grid<T> | g.width() == width && g.height() == height } {
+        Grid { width, height, cells }
+    }
+
+    /// Its cells, row by row, as `cells_mut` has them.
+    export fn into_cells(self) -> { c: List<T> | c.len() == self.width() * self.height() } {
+        self.cells
+    }
+
     /// A grid `width` wide and `height` high with `f(x, y)` in column `x`
     /// of row `y`, made row by row, or `None` if it would have more cells
     /// than a `usize` can count. For values that aren't `Copy`, which
