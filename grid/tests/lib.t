@@ -103,3 +103,36 @@ fn rows() {
     assert_eq(&r[2], &5);
     assert_eq(&g.row(0)[1], &1);
 }
+
+/// Rows lent to change keep the grid as big: `get` after `row_mut` needs
+/// no check (t-life's bands write rows of the next generation this way).
+#[test]
+fn rows_to_change() {
+    let Some(mut g) = Grid::new(3, 2, 0u8) else { panic("3 by 2 fits") };
+    let r = g.row_mut(1);
+    r[0] = 4;
+    r[2] = 6;
+    assert_eq(g.get(0, 1), &4);
+    assert_eq(g.get(2, 1), &6);
+    assert_eq(g.get(0, 0), &0);
+    let cells = g.cells_mut();
+    cells[1] = 9;
+    assert_eq(g.get(1, 0), &9);
+    assert_eq(&g.width(), &3);
+}
+
+/// A grid made of a list's cells, row by row, gives them back.
+#[test]
+fn from_and_into_cells() {
+    let mut l = alloc::list::List::new();
+    l.push(1u8);
+    l.push(2);
+    l.push(3);
+    l.push(4);
+    let g = Grid::from_cells(2, 2, l);
+    assert_eq(g.get(1, 0), &2);
+    assert_eq(g.get(0, 1), &3);
+    let back = g.into_cells();
+    assert_eq(&back.len(), &4);
+    assert_eq(&back[3], &4);
+}
