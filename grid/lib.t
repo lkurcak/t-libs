@@ -186,24 +186,14 @@ impl<T: Copy> Grid<T> {
         Some(Grid { width, height, cells: List::filled(width * height, fill) })
     }
 
-    /// The same grid, again.
+    /// The same grid, again: its cells copied all at once.
     export fn copy(
         &self,
     ) -> { g: Grid<T> | g.width() == self.width() && g.height() == self.height() } with alloc {
-        let n = self.cells.len();
-        if n == 0 {
-            return Grid { width: self.width, height: self.height, cells: List::new() };
-        }
-        let mut g = Grid {
+        Grid {
             width: self.width,
             height: self.height,
-            cells: List::filled(n, self.cells[0]),
-        };
-        let mut i: usize = 1;
-        while i < n {
-            let _ = g.cells.replace(i, self.cells[i]);
-            i = i + 1;
+            cells: List::from_slice(self.cells.as_slice()),
         }
-        g
     }
 }
