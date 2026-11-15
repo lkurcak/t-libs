@@ -433,6 +433,12 @@ Since t 0.84.0 it's forgotten only from the closure on, but that's enough
 to lose it: the closure pushes, and nothing says `free_with` never calls it
 on an empty heap.
 
+Since t 0.95.0 (t-lang step 80) an empty heap may be dropped, whatever
+its values are: `Heap` has `impl<T> Discard for { h: Heap<T> | h.len() ==
+0 }`, and `List` the same. So `into_sorted` drops `h` once `pop` gives
+`None`, with no closure, and says how long its list is: `{ l: List<T> |
+l.len() == self.len() }`, by a loop invariant on the `while let`.
+
 ## `swap` takes indices it checks — fixed in 0.75.0
 
 `List::swap(i, j)` and `<[T]>::swap` gave a `bool`, whether both were in

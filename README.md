@@ -91,7 +91,9 @@ h.pop()                                     // Some(1): least first
 - `Heap<T>`: `new`, `from_list` (in linear time), `len`, `is_empty`,
   `peek`, `push`, `pop`, `into_sorted`, `as_slice`, `free_with`. Pushing
   and popping need `T: Ord`; tuples order by their first element, then
-  the next, so `(cost, node)` pops the cheapest.
+  the next, so `(cost, node)` pops the cheapest. An empty heap may be
+  dropped whatever its values are, so one of values that aren't `Discard`
+  may be emptied by `pop` and then dropped.
 
 A binary heap in a list. The checker proves every index in moving a
 value up or down the tree inside the list, so nothing in it panics, and
