@@ -42,6 +42,16 @@ impl<T> Heap<T> {
     }
 }
 
+/// One that's empty holds no values, whatever they'd be: dropping it only
+/// gives its list's buffer back. So a heap of values that aren't `Discard`
+/// may be dropped once it's known to be empty, as `pop` giving `None`
+/// says (t 0.95.0).
+impl<T> Discard for { h: Heap<T> | h.len() == 0 } {
+    fn discard(self) {
+        let Heap { items: _empty } = self;
+    }
+}
+
 impl<T: Ord> Heap<T> {
     /// A heap of the values in `items`, in time linear in how many there
     /// are.
@@ -77,18 +87,15 @@ impl<T: Ord> Heap<T> {
     }
 
     /// Each value, least first.
-    export fn into_sorted(self) -> List<T> with alloc {
+    export fn into_sorted(self) -> { l: List<T> | l.len() == self.len() } with alloc {
+        let n = self.len();
         let mut h = self;
         let mut sorted = List::with_capacity(h.items.len());
-        while let Some(v) = h.pop() {
+        while let Some(v) = h.pop() invariant sorted.len() + h.len() == n {
             sorted.push(v);
         }
-        // `h` is empty now, and the checker knows it (t 0.75.0), but a heap
-        // of values that may be linear is used up all the same: with
-        // nothing. The closure captures `sorted` and pushes, so the checker
-        // forgets its length from here on, which is why the result isn't
-        // refined (FRICTION.md).
-        h.free_with(|v| sorted.push(v));
+        // `h` is empty now, which the checker knows, so it's dropped, by
+        // the impl for an empty heap below, whatever `T` is (t 0.95.0).
         sorted
     }
 
