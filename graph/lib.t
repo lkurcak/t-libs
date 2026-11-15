@@ -91,11 +91,12 @@ impl<N, E> Graph<N, E> {
         mut f: F,
         mut g: G,
     ) with e {
-        self.nodes.free_with(|node| {
-            let Node { value, out } = node;
+        for Node { value, out } in self.nodes {
             f(value);
-            out.free_with(|(_, e)| g(e));
-        });
+            for (_, e) in out {
+                g(e);
+            }
+        }
     }
 
     /// The edges that leave node `from`, each the node it goes to and its
@@ -263,6 +264,16 @@ impl<N, E> Graph<N, E> {
             }
         }
         Tree { cost, parent }
+    }
+}
+
+/// One with no nodes has no values and no edges, whatever they'd be:
+/// dropping it only gives its list's buffer back. So a graph of values
+/// that aren't `Discard` may be dropped once it's known to have no nodes
+/// (t 0.95.0).
+impl<N, E> Discard for { g: Graph<N, E> | g.node_count() == 0 } {
+    fn discard(self) {
+        let Graph { nodes: _empty } = self;
     }
 }
 

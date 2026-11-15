@@ -182,3 +182,10 @@ fn linear_values() {
     assert_eq(&nodes, &3);
     assert_eq(&edges, &30);
 }
+
+/// A graph with no nodes may be dropped, whatever its values' types.
+#[test]
+fn empty_graph_of_linear_values() {
+    let g: Graph<Token, Token> = Graph::new();
+    assert_eq(&g.node_count(), &0);
+}

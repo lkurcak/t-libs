@@ -63,9 +63,11 @@ impl<K, V> Map<K, V> {
     /// up.
     export fn free_with<effect e, F: FnMut((K, V)) with e + Discard>(self, mut f: F) with e {
         let Map { buckets, len: _ } = self;
-        buckets.free_with(|bucket: List<Entry<K, V>>| {
-            bucket.free_with(|Entry { key, value }| f((key, value)))
-        });
+        for bucket in buckets {
+            for Entry { key, value } in bucket {
+                f((key, value));
+            }
+        }
     }
 }
 
@@ -143,7 +145,7 @@ impl<K: Hash + Eq, V> Map<K, V> {
     }
 
     /// Doubles the buckets, from `FIRST` at first, and puts each key in its
-    /// new one. The closures' only change to `self` is `put`, which keeps
+    /// new one. The loops' only change to `self` is `put`, which keeps
     /// `len`, so they keep it too.
     #[blame_caller]
     fn grow(&mut self) with alloc ensures self.len() == old(self.len()) {
@@ -162,7 +164,11 @@ impl<K: Hash + Eq, V> Map<K, V> {
             i = i + 1;
         }
         let old = replace(&mut self.buckets, buckets);
-        old.free_with(|bucket: List<Entry<K, V>>| bucket.free_with(|e: Entry<K, V>| self.put(e)));
+        for bucket in old {
+            for e in bucket {
+                self.put(e);
+            }
+        }
     }
 }
 
