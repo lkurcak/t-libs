@@ -86,11 +86,9 @@ impl<N, E> Graph<N, E> {
     { &mut self.nodes[id].value }
 
     /// Gives each node's value to `f`, and each edge's to `g`.
-    export fn free_with<effect e, F: FnMut(N) with e + Discard, G: FnMut(E) with e + Discard>(
-        self,
-        mut f: F,
-        mut g: G,
-    ) with e {
+    export fn free_with<F: FnMut(N) + Discard, G: FnMut(E) + Discard>(self, mut f: F, mut g: G)
+    with {F::e, G::e}
+    {
         for Node { value, out } in self.nodes {
             f(value);
             for (_, e) in out {
@@ -205,11 +203,11 @@ impl<N, E> Graph<N, E> {
     /// `weight` of each of its edges, or `None` for a node `start` doesn't
     /// reach. A path that would cost more than a `u64` counts is taken to
     /// be no path.
-    export fn distances<effect e, F: FnMut(&E) -> u64 with e + Discard>(
+    export fn distances<F: FnMut(&E) -> u64 + Discard>(
         &self,
         start: { v: usize | v < self.node_count() },
         weight: F,
-    ) -> { d: List<Option<u64>> | d.len() == self.node_count() } with {alloc, e} {
+    ) -> { d: List<Option<u64>> | d.len() == self.node_count() } with {alloc, F::e} {
         let Tree { cost, parent: _ } = self.dijkstra(start, weight);
         cost
     }
@@ -217,12 +215,12 @@ impl<N, E> Graph<N, E> {
     /// The cheapest path from `from` to `to`, the sum of `weight` of each
     /// of its edges, and the nodes on it, `from` and `to` included; or
     /// `None` if there's no path.
-    export fn cheapest_path<effect e, F: FnMut(&E) -> u64 with e + Discard>(
+    export fn cheapest_path<F: FnMut(&E) -> u64 + Discard>(
         &self,
         from: { v: usize | v < self.node_count() },
         to: { v: usize | v < self.node_count() },
         weight: F,
-    ) -> Option<(u64, List<{ v: usize | v < self.node_count() }>)> with {alloc, e} {
+    ) -> Option<(u64, List<{ v: usize | v < self.node_count() }>)> with {alloc, F::e} {
         let tree = self.dijkstra(from, weight);
         let Some(cost) = tree.cost[to] else { return None };
         let path = walk_back(tree.cost.len(), &tree.parent, from, to)?;
@@ -231,11 +229,11 @@ impl<N, E> Graph<N, E> {
 
     /// Dijkstra's algorithm: for each node `start` reaches, the cost of the
     /// cheapest path to it and the node before it on that path.
-    fn dijkstra<effect e, F: FnMut(&E) -> u64 with e + Discard>(
+    fn dijkstra<F: FnMut(&E) -> u64 + Discard>(
         &self,
         start: { v: usize | v < self.node_count() },
         mut weight: F,
-    ) -> { t: Tree | t.cost.len() == self.node_count() } with {alloc, e} {
+    ) -> { t: Tree | t.cost.len() == self.node_count() } with {alloc, F::e} {
         let n = self.nodes.len();
         let mut cost: List<Option<u64>> = List::filled(n, None);
         let mut parent: List<Option<{ p: usize | p < n }>> = List::filled(n, None);

@@ -144,11 +144,11 @@ impl<T> Grid<T> {
     /// of row `y`, made row by row, or `None` if it would have more cells
     /// than a `usize` can count. For values that aren't `Copy`, which
     /// `new` can't copy into each cell.
-    export fn from_fn<effect e, F: FnMut(usize, usize) -> T with e + Discard>(
+    export fn from_fn<F: FnMut(usize, usize) -> T + Discard>(
         width: usize,
         height: usize,
         mut f: F,
-    ) -> Option<{ g: Grid<T> | g.width() == width && g.height() == height }> with {alloc, e} {
+    ) -> Option<{ g: Grid<T> | g.width() == width && g.height() == height }> with {alloc, F::e} {
         if height == 0 {
             return Some(Grid { width, height, cells: List::new() });
         }

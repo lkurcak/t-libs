@@ -61,7 +61,7 @@ impl<K, V> Map<K, V> {
     /// Gives each key and its value to `f`, as `(key, value)`, and then the
     /// buckets back: how a map of values that can't be thrown away is used
     /// up.
-    export fn free_with<effect e, F: FnMut((K, V)) with e + Discard>(self, mut f: F) with e {
+    export fn free_with<F: FnMut((K, V)) + Discard>(self, mut f: F) with F::e {
         let Map { buckets, len: _ } = self;
         for bucket in buckets {
             for Entry { key, value } in bucket {
