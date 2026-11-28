@@ -37,9 +37,7 @@ impl<T> Heap<T> {
     export fn as_slice(&self) -> { s: &[T] | s.len() == self.len() } { self.items.as_slice() }
 
     /// Gives each value, in no particular order, to `f`.
-    export fn free_with<effect e, F: FnMut(T) with e + Discard>(self, f: F) with e {
-        self.items.free_with(f)
-    }
+    export fn free_with<F: FnMut(T) + Discard>(self, f: F) with F::e { self.items.free_with(f) }
 }
 
 /// One that's empty holds no values, whatever they'd be: dropping it only
